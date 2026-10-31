@@ -1,0 +1,6 @@
+{
+  "name": "Master League PES 2021",
+  "description": "Ứng dụng iOS quản lý sự nghiệp huấn luyện viên Master League PES 2021 với dashboard thống kê, tài chính CLB, phòng truyền thống 3D, so sánh cầu thủ ghi bàn/kiến tạo và quản lý mùa giải toàn diện.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
