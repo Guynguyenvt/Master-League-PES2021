@@ -1,84 +1,116 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { X, Upload, Link, Image, Check, Sparkles, Camera } from 'lucide-react';
 
 interface ImageUploadModalProps {
   isOpen: boolean;
   onClose: () => void;
-  title: string;
+  title?: string;
+  targetTitle?: string;
+  targetType?: string;
+  currentImageUrl?: string;
   subtitle?: string;
   currentImage?: string;
   onSaveImage: (imageUrl: string) => void;
   presetImages?: { label: string; url: string }[];
 }
 
-// Thu nhỏ ảnh trước khi lưu để dữ liệu nhẹ, đồng bộ nhanh và không vượt giới hạn lưu trữ
-const compressImage = (file: File): Promise<string> =>
+const readAsDataURL = (file: File): Promise<string> =>
   new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onerror = () => reject(new Error('read'));
-    reader.onload = () => {
-      const src = reader.result as string;
-      const img = new Image();
-      img.onerror = () => reject(new Error('img'));
-      img.onload = () => {
-        const isJpeg = file.type === 'image/jpeg';
-        const maxDim = isJpeg ? 512 : 384;
-        const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
-        const w = Math.max(1, Math.round(img.width * scale));
-        const h = Math.max(1, Math.round(img.height * scale));
-        const canvas = document.createElement('canvas');
-        canvas.width = w;
-        canvas.height = h;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) {
-          resolve(src);
-          return;
-        }
-        if (isJpeg) {
-          ctx.fillStyle = '#ffffff';
-          ctx.fillRect(0, 0, w, h);
-          ctx.drawImage(img, 0, 0, w, h);
-          resolve(canvas.toDataURL('image/jpeg', 0.82));
-          return;
-        }
-        ctx.drawImage(img, 0, 0, w, h);
-        let out = canvas.toDataURL('image/webp', 0.85);
-        if (!out.startsWith('data:image/webp')) out = canvas.toDataURL('image/png');
-        resolve(out);
-      };
-      img.src = src;
-    };
+    reader.onload = () => resolve(reader.result as string);
     reader.readAsDataURL(file);
   });
+
+// Thu nhỏ ảnh trước khi lưu để dữ liệu nhẹ, đồng bộ nhanh và không vượt giới hạn lưu trữ.
+// Dùng document.createElement('img') vì tên `Image` trong file này là biểu tượng của lucide-react.
+const compressImage = async (file: File): Promise<string> => {
+  const src = await readAsDataURL(file);
+  try {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const el = document.createElement('img');
+      el.onload = () => resolve(el);
+      el.onerror = () => reject(new Error('img'));
+      el.src = src;
+    });
+    const isJpeg = file.type === 'image/jpeg';
+    const maxDim = isJpeg ? 512 : 384;
+    const scale = Math.min(1, maxDim / Math.max(img.naturalWidth || img.width, img.naturalHeight || img.height));
+    const w = Math.max(1, Math.round((img.naturalWidth || img.width) * scale));
+    const h = Math.max(1, Math.round((img.naturalHeight || img.height) * scale));
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('ctx');
+    if (isJpeg) {
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, w, h);
+      ctx.drawImage(img, 0, 0, w, h);
+      return canvas.toDataURL('image/jpeg', 0.82);
+    }
+    ctx.drawImage(img, 0, 0, w, h);
+    let out = canvas.toDataURL('image/webp', 0.85);
+    if (!out.startsWith('data:image/webp')) out = canvas.toDataURL('image/png');
+    return out;
+  } catch {
+    // Không nén được: dùng ảnh gốc nếu đủ nhẹ, nếu không thì báo lỗi
+    if (file.size <= 700 * 1024) return src;
+    throw new Error('Không đọc được ảnh này');
+  }
+};
 
 export const ImageUploadModal: React.FC<ImageUploadModalProps> = ({
   isOpen,
   onClose,
-  title,
+  title: titleProp,
+  targetTitle,
+  currentImageUrl,
   subtitle = 'Tải ảnh thực tế từ thiết bị của bạn hoặc dán đường dẫn ảnh',
   currentImage = '',
   onSaveImage,
   presetImages = [],
 }) => {
-  const [selectedImage, setSelectedImage] = useState<string>(currentImage);
+  const title = titleProp ?? targetTitle ?? 'Cập nhật hình ảnh';
+  const initialImage = currentImage || currentImageUrl || '';
+  const [selectedImage, setSelectedImage] = useState<string>(initialImage);
   const [urlInput, setUrlInput] = useState<string>('');
+  const [processing, setProcessing] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
+
+  // Mỗi lần mở khung: hiện ảnh hiện tại của đối tượng đang sửa (tránh dùng nhầm ảnh của lần trước)
+  useEffect(() => {
+    if (isOpen) {
+      setSelectedImage(initialImage);
+      setUrlInput('');
+      setErrorMsg('');
+      setProcessing(false);
+    }
+  }, [isOpen, initialImage]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!isOpen) return null;
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > 15 * 1024 * 1024) {
-        alert('Vui lòng chọn ảnh có dung lượng dưới 15MB');
-        return;
-      }
-      compressImage(file)
-        .then((result) => {
-          if (result) setSelectedImage(result);
-        })
-        .catch(() => alert('Không đọc được ảnh này, hãy thử ảnh khác'));
+    const input = e.target;
+    const file = input.files?.[0];
+    if (!file) return;
+    if (file.size > 15 * 1024 * 1024) {
+      setErrorMsg('Vui lòng chọn ảnh có dung lượng dưới 15MB');
+      input.value = '';
+      return;
     }
+    setErrorMsg('');
+    setProcessing(true);
+    compressImage(file)
+      .then((result) => {
+        if (result) setSelectedImage(result);
+      })
+      .catch(() => setErrorMsg('Không đọc được ảnh này, hãy thử ảnh khác (JPG hoặc PNG)'))
+      .finally(() => {
+        setProcessing(false);
+        input.value = ''; // cho phép chọn lại cùng một ảnh
+      });
   };
 
   const handleApplyUrl = () => {
@@ -155,6 +187,9 @@ export const ImageUploadModal: React.FC<ImageUploadModalProps> = ({
             Tải Ảnh Thực Tế Từ Điện Thoại / Máy Tính
           </button>
 
+          {processing && <p className="text-[11px] text-cyan-300 text-center">Đang xử lý ảnh…</p>}
+          {errorMsg && <p className="text-[11px] text-rose-300 text-center">{errorMsg}</p>}
+
           {/* Paste URL */}
           <div className="flex gap-2">
             <input
@@ -217,7 +252,8 @@ export const ImageUploadModal: React.FC<ImageUploadModalProps> = ({
           <button
             type="button"
             onClick={handleSave}
-            className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-black text-xs shadow-lg shadow-cyan-500/20 flex items-center justify-center gap-1.5 cursor-pointer"
+            disabled={processing}
+            className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-black text-xs shadow-lg shadow-cyan-500/20 flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
           >
             <Check className="w-4 h-4" />
             Lưu Thay Đổi
