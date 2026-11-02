@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Player, SeasonStats, Club } from '../types';
-import { playerClubBreakdown } from '../utils/performers';
+import { playerClubBreakdown, DEFAULT_AVATAR } from '../utils/performers';
 import {
   Flame,
   Zap,
@@ -458,8 +458,17 @@ export const TopPerformerComparison: React.FC<TopPerformerComparisonProps> = ({
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   {/* Top Scorer of season */}
                   <div className="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800 flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0">
-                      <Flame className="w-4 h-4" />
+<div
+                      onClick={() => onUploadPlayerAvatar?.(s.topScorer.playerName, s.topScorer.playerId)}
+                      className="w-10 h-10 rounded-xl overflow-hidden bg-slate-800 border border-amber-500/50 hover:border-amber-400 shrink-0 cursor-pointer transition"
+                      title="Bấm để đổi ảnh cầu thủ"
+                    >
+                      <img
+                        src={s.topScorer.avatarUrl || DEFAULT_AVATAR}
+                        alt={s.topScorer.playerName}
+                        referrerPolicy="no-referrer"
+                        className="w-full h-full object-cover"
+                      />
                     </div>
                     <div className="min-w-0">
                       <div className="text-[10px] text-slate-400 uppercase font-bold">Top 1 Ghi Bàn</div>
@@ -479,8 +488,17 @@ export const TopPerformerComparison: React.FC<TopPerformerComparisonProps> = ({
 
                   {/* Top Assist of season */}
                   <div className="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800 flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-lg bg-cyan-500/20 text-cyan-400 flex items-center justify-center shrink-0">
-                      <Zap className="w-4 h-4" />
+<div
+                      onClick={() => onUploadPlayerAvatar?.(s.topAssist.playerName, s.topAssist.playerId)}
+                      className="w-10 h-10 rounded-xl overflow-hidden bg-slate-800 border border-cyan-500/50 hover:border-cyan-400 shrink-0 cursor-pointer transition"
+                      title="Bấm để đổi ảnh cầu thủ"
+                    >
+                      <img
+                        src={s.topAssist.avatarUrl || DEFAULT_AVATAR}
+                        alt={s.topAssist.playerName}
+                        referrerPolicy="no-referrer"
+                        className="w-full h-full object-cover"
+                      />
                     </div>
                     <div className="min-w-0">
                       <div className="text-[10px] text-slate-400 uppercase font-bold">Top 1 Kiến Tạo</div>

@@ -743,6 +743,7 @@ export default function App() {
               onDeleteSeason={handleDeleteSeason}
               onOpenAddSeason={() => setIsAddSeasonOpen(true)}
               onEditPerformer={(seasonId, kind) => setPerformerEdit({ seasonId, kind })}
+              onUploadPlayerAvatar={handleOpenPlayerAvatarUpload}
             />
           </div>
         )}
@@ -767,6 +768,7 @@ export default function App() {
               onDeleteSeason={handleDeleteSeason}
               onOpenAddSeason={() => setIsAddSeasonOpen(true)}
               onEditPerformer={(seasonId, kind) => setPerformerEdit({ seasonId, kind })}
+              onUploadPlayerAvatar={handleOpenPlayerAvatarUpload}
             />
           </div>
         )}

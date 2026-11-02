@@ -3,6 +3,7 @@ import { SeasonStats, Club } from '../types';
 import { ClubBadge3D } from './ClubBadge3D';
 import { Trophy3D } from './Trophy3D';
 import { formatFullCurrency, formatProfitFull } from '../utils/currency';
+import { DEFAULT_AVATAR } from '../utils/performers';
 import {
   Calendar,
   ChevronDown,
@@ -26,6 +27,7 @@ interface SeasonListHistoryProps {
   onDeleteSeason?: (seasonId: string) => void;
   onOpenAddSeason?: () => void;
   onEditPerformer?: (seasonId: string, kind: 'scorer' | 'assist') => void;
+  onUploadPlayerAvatar?: (playerName: string, playerId: string) => void;
 }
 
 export const SeasonListHistory: React.FC<SeasonListHistoryProps> = ({
@@ -35,6 +37,7 @@ export const SeasonListHistory: React.FC<SeasonListHistoryProps> = ({
   onDeleteSeason,
   onOpenAddSeason,
   onEditPerformer,
+  onUploadPlayerAvatar,
 }) => {
   const [expandedSeasonId, setExpandedSeasonId] = useState<string | null>(
     seasons[0]?.id || null
@@ -346,7 +349,18 @@ export const SeasonListHistory: React.FC<SeasonListHistoryProps> = ({
                   {/* Season Performers & Financials (Full Numbers) */}
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
                     <div className="bg-slate-950/60 p-3 rounded-2xl border border-slate-800 flex items-center gap-2.5">
-                      <Flame className="w-5 h-5 text-amber-400 shrink-0" />
+                      <div
+                      onClick={() => onUploadPlayerAvatar?.(season.topScorer.playerName, season.topScorer.playerId)}
+                      className="w-10 h-10 rounded-xl overflow-hidden bg-slate-800 border border-amber-500/50 hover:border-amber-400 shrink-0 cursor-pointer transition"
+                      title="Bấm để đổi ảnh cầu thủ"
+                    >
+                      <img
+                        src={season.topScorer.avatarUrl || DEFAULT_AVATAR}
+                        alt={season.topScorer.playerName}
+                        referrerPolicy="no-referrer"
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
                       <div className="text-xs min-w-0 flex-1">
                         <span className="text-[10px] text-slate-400 block uppercase font-bold">Top 1 Ghi Bàn Mùa</span>
                         <span className="font-extrabold text-white">{season.topScorer.playerName}</span>
@@ -364,7 +378,18 @@ export const SeasonListHistory: React.FC<SeasonListHistoryProps> = ({
                     </div>
 
                     <div className="bg-slate-950/60 p-3 rounded-2xl border border-slate-800 flex items-center gap-2.5">
-                      <Zap className="w-5 h-5 text-cyan-400 shrink-0" />
+                      <div
+                      onClick={() => onUploadPlayerAvatar?.(season.topAssist.playerName, season.topAssist.playerId)}
+                      className="w-10 h-10 rounded-xl overflow-hidden bg-slate-800 border border-cyan-500/50 hover:border-cyan-400 shrink-0 cursor-pointer transition"
+                      title="Bấm để đổi ảnh cầu thủ"
+                    >
+                      <img
+                        src={season.topAssist.avatarUrl || DEFAULT_AVATAR}
+                        alt={season.topAssist.playerName}
+                        referrerPolicy="no-referrer"
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
                       <div className="text-xs min-w-0 flex-1">
                         <span className="text-[10px] text-slate-400 block uppercase font-bold">Top 1 Kiến Tạo Mùa</span>
                         <span className="font-extrabold text-white">{season.topAssist.playerName}</span>
