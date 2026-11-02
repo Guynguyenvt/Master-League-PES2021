@@ -3,6 +3,7 @@ import { SeasonStats, Club } from '../types';
 import { ClubBadge3D } from './ClubBadge3D';
 import { Trophy3D } from './Trophy3D';
 import { formatFullCurrency, formatProfitFull } from '../utils/currency';
+import { DEFAULT_AVATAR } from '../utils/performers';
 import {
   Trophy,
   Flame,
@@ -10,6 +11,7 @@ import {
   Sparkles,
   Wallet,
   Camera,
+  Pencil,
 } from 'lucide-react';
 
 interface CurrentSeasonOverviewProps {
@@ -18,6 +20,7 @@ interface CurrentSeasonOverviewProps {
   onViewPlayerDetail?: (playerId: string) => void;
   onUploadPlayerAvatar?: (playerName: string, playerId: string) => void;
   onUploadClubLogo?: (clubId: string) => void;
+  onEditPerformer?: (seasonId: string, kind: 'scorer' | 'assist') => void;
 }
 
 export const CurrentSeasonOverview: React.FC<CurrentSeasonOverviewProps> = ({
@@ -26,6 +29,7 @@ export const CurrentSeasonOverview: React.FC<CurrentSeasonOverviewProps> = ({
   onViewPlayerDetail,
   onUploadPlayerAvatar,
   onUploadClubLogo,
+  onEditPerformer,
 }) => {
   const profit = season.endTransferBudget - season.startTransferBudget;
   const profitPercent =
@@ -278,10 +282,19 @@ export const CurrentSeasonOverview: React.FC<CurrentSeasonOverviewProps> = ({
         <div className="rounded-3xl ios-glass-card p-4 border border-slate-700/60 transition group relative">
           <div className="flex items-center justify-between text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
             <span className="flex items-center gap-1.5 text-amber-400">
-              <Flame className="w-3.5 h-3.5" /> Vua Phá Lưới Mùa
+              <Flame className="w-3.5 h-3.5" /> Top 1 Ghi Bàn Mùa
             </span>
-            <span className="text-[10px] bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded-full font-mono">
-              {season.topScorer.position}
+            <span className="flex items-center gap-1.5">
+              <span className="text-[10px] bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded-full font-mono">
+                {season.topScorer.position}
+              </span>
+              <button
+                onClick={() => onEditPerformer?.(season.id, 'scorer')}
+                className="p-1 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 cursor-pointer"
+                title="Sửa Top 1 Ghi Bàn"
+              >
+                <Pencil className="w-3 h-3" />
+              </button>
             </span>
           </div>
 
@@ -292,7 +305,7 @@ export const CurrentSeasonOverview: React.FC<CurrentSeasonOverviewProps> = ({
               title="Bấm để đổi ảnh cầu thủ thực tế"
             >
               <img
-                src={season.topScorer.avatarUrl || 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=100'}
+                src={season.topScorer.avatarUrl || DEFAULT_AVATAR}
                 alt={season.topScorer.playerName}
                 referrerPolicy="no-referrer"
                 className="w-full h-full object-cover"
@@ -312,6 +325,7 @@ export const CurrentSeasonOverview: React.FC<CurrentSeasonOverviewProps> = ({
                 <span className="text-amber-300 font-bold font-mono text-sm">
                   {season.topScorer.goals} Bàn
                 </span>
+                <span className="text-cyan-300 font-mono">{season.topScorer.assists} KT</span>
                 <span className="text-slate-400">({season.topScorer.matches} trận)</span>
               </div>
             </div>
@@ -322,10 +336,19 @@ export const CurrentSeasonOverview: React.FC<CurrentSeasonOverviewProps> = ({
         <div className="rounded-3xl ios-glass-card p-4 border border-slate-700/60 transition group relative">
           <div className="flex items-center justify-between text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
             <span className="flex items-center gap-1.5 text-cyan-400">
-              <Zap className="w-3.5 h-3.5" /> Vua Kiến Tạo Mùa
+              <Zap className="w-3.5 h-3.5" /> Top 1 Kiến Tạo Mùa
             </span>
-            <span className="text-[10px] bg-cyan-500/20 text-cyan-300 px-1.5 py-0.5 rounded-full font-mono">
-              {season.topAssist.position}
+            <span className="flex items-center gap-1.5">
+              <span className="text-[10px] bg-cyan-500/20 text-cyan-300 px-1.5 py-0.5 rounded-full font-mono">
+                {season.topAssist.position}
+              </span>
+              <button
+                onClick={() => onEditPerformer?.(season.id, 'assist')}
+                className="p-1 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 cursor-pointer"
+                title="Sửa Top 1 Kiến Tạo"
+              >
+                <Pencil className="w-3 h-3" />
+              </button>
             </span>
           </div>
 
@@ -336,7 +359,7 @@ export const CurrentSeasonOverview: React.FC<CurrentSeasonOverviewProps> = ({
               title="Bấm để đổi ảnh cầu thủ thực tế"
             >
               <img
-                src={season.topAssist.avatarUrl || 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=100'}
+                src={season.topAssist.avatarUrl || DEFAULT_AVATAR}
                 alt={season.topAssist.playerName}
                 referrerPolicy="no-referrer"
                 className="w-full h-full object-cover"
@@ -356,6 +379,7 @@ export const CurrentSeasonOverview: React.FC<CurrentSeasonOverviewProps> = ({
                 <span className="text-cyan-300 font-bold font-mono text-sm">
                   {season.topAssist.assists} Kiến Tạo
                 </span>
+                <span className="text-amber-300 font-mono">{season.topAssist.goals} Bàn</span>
                 <span className="text-slate-400">({season.topAssist.matches} trận)</span>
               </div>
             </div>

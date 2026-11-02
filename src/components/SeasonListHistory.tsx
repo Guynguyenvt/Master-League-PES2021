@@ -16,6 +16,7 @@ import {
   Trash2,
   AlertTriangle,
   Plus,
+  Pencil,
 } from 'lucide-react';
 
 interface SeasonListHistoryProps {
@@ -24,6 +25,7 @@ interface SeasonListHistoryProps {
   onSelectSeason?: (seasonId: string) => void;
   onDeleteSeason?: (seasonId: string) => void;
   onOpenAddSeason?: () => void;
+  onEditPerformer?: (seasonId: string, kind: 'scorer' | 'assist') => void;
 }
 
 export const SeasonListHistory: React.FC<SeasonListHistoryProps> = ({
@@ -32,6 +34,7 @@ export const SeasonListHistory: React.FC<SeasonListHistoryProps> = ({
   onSelectSeason,
   onDeleteSeason,
   onOpenAddSeason,
+  onEditPerformer,
 }) => {
   const [expandedSeasonId, setExpandedSeasonId] = useState<string | null>(
     seasons[0]?.id || null
@@ -344,24 +347,38 @@ export const SeasonListHistory: React.FC<SeasonListHistoryProps> = ({
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
                     <div className="bg-slate-950/60 p-3 rounded-2xl border border-slate-800 flex items-center gap-2.5">
                       <Flame className="w-5 h-5 text-amber-400 shrink-0" />
-                      <div className="text-xs">
-                        <span className="text-[10px] text-slate-400 block uppercase font-bold">Vua Phá Lưới Mùa</span>
+                      <div className="text-xs min-w-0 flex-1">
+                        <span className="text-[10px] text-slate-400 block uppercase font-bold">Top 1 Ghi Bàn Mùa</span>
                         <span className="font-extrabold text-white">{season.topScorer.playerName}</span>
                         <span className="text-amber-300 font-mono font-bold block">
-                          {season.topScorer.goals} Bàn ({season.topScorer.matches} trận)
+                          {season.topScorer.goals} Bàn · {season.topScorer.assists} KT ({season.topScorer.matches} trận)
                         </span>
                       </div>
+                      <button
+                        onClick={() => onEditPerformer?.(season.id, 'scorer')}
+                        className="p-1.5 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 cursor-pointer shrink-0"
+                        title="Sửa Top 1 Ghi Bàn"
+                      >
+                        <Pencil className="w-3 h-3" />
+                      </button>
                     </div>
 
                     <div className="bg-slate-950/60 p-3 rounded-2xl border border-slate-800 flex items-center gap-2.5">
                       <Zap className="w-5 h-5 text-cyan-400 shrink-0" />
-                      <div className="text-xs">
-                        <span className="text-[10px] text-slate-400 block uppercase font-bold">Vua Kiến Tạo Mùa</span>
+                      <div className="text-xs min-w-0 flex-1">
+                        <span className="text-[10px] text-slate-400 block uppercase font-bold">Top 1 Kiến Tạo Mùa</span>
                         <span className="font-extrabold text-white">{season.topAssist.playerName}</span>
                         <span className="text-cyan-300 font-mono font-bold block">
-                          {season.topAssist.assists} Kiến tạo ({season.topAssist.matches} trận)
+                          {season.topAssist.assists} KT · {season.topAssist.goals} Bàn ({season.topAssist.matches} trận)
                         </span>
                       </div>
+                      <button
+                        onClick={() => onEditPerformer?.(season.id, 'assist')}
+                        className="p-1.5 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 cursor-pointer shrink-0"
+                        title="Sửa Top 1 Kiến Tạo"
+                      >
+                        <Pencil className="w-3 h-3" />
+                      </button>
                     </div>
 
                     <div className="bg-slate-950/60 p-3 rounded-2xl border border-slate-800 flex items-center gap-2.5">

@@ -24,7 +24,7 @@ const readAsDataURL = (file: File): Promise<string> =>
 
 // Thu nhỏ ảnh trước khi lưu để dữ liệu nhẹ, đồng bộ nhanh và không vượt giới hạn lưu trữ.
 // Dùng document.createElement('img') vì tên `Image` trong file này là biểu tượng của lucide-react.
-const compressImage = async (file: File): Promise<string> => {
+export const compressImage = async (file: File): Promise<string> => {
   const src = await readAsDataURL(file);
   try {
     const img = await new Promise<HTMLImageElement>((resolve, reject) => {

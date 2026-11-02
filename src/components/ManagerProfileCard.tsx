@@ -10,6 +10,7 @@ import {
   Camera,
   Upload,
   Trophy,
+  Pencil,
 } from 'lucide-react';
 
 interface ManagerProfileCardProps {
@@ -21,6 +22,7 @@ interface ManagerProfileCardProps {
   onOpenManagerSwitcher?: () => void;
   onUploadManagerAvatar?: () => void;
   onUploadClubLogo?: (clubId: string) => void;
+  onEditManager?: () => void;
 }
 
 export const ManagerProfileCard: React.FC<ManagerProfileCardProps> = ({
@@ -32,6 +34,7 @@ export const ManagerProfileCard: React.FC<ManagerProfileCardProps> = ({
   onOpenManagerSwitcher,
   onUploadManagerAvatar,
   onUploadClubLogo,
+  onEditManager,
 }) => {
   const currentClub = clubs.find((c) => c.id === manager.currentClubId);
   const managerTenures = tenures.filter((t) => t.managerId === manager.id);
@@ -91,6 +94,13 @@ export const ManagerProfileCard: React.FC<ManagerProfileCardProps> = ({
               <span className="text-[11px] font-bold uppercase tracking-wider text-cyan-400 bg-cyan-950/80 px-2 py-0.5 rounded-full border border-cyan-500/30">
                 {manager.nationality} • {manager.age} Tuổi
               </span>
+              <button
+                onClick={onEditManager}
+                className="p-1 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 cursor-pointer"
+                title="Sửa tên, quốc tịch, tuổi HLV"
+              >
+                <Pencil className="w-3 h-3" />
+              </button>
               <button
                 onClick={onOpenManagerSwitcher}
                 className="text-[11px] text-slate-400 hover:text-white flex items-center gap-0.5 underline transition cursor-pointer"

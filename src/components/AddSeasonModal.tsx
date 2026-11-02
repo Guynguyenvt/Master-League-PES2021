@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { SeasonStats, Club, CupRound } from '../types';
+import { SeasonStats, Club, CupRound, Player } from '../types';
+import { autoPlayerId, POSITIONS } from '../utils/performers';
 import {
   TOP_LEAGUES,
   POPULAR_PRESET_CLUBS,
@@ -34,6 +35,7 @@ interface AddSeasonModalProps {
   currentClub: Club;
   allClubs: Club[];
   managerId: string;
+  players?: Player[];
 }
 
 const CUP_ROUNDS: CupRound[] = [
@@ -54,6 +56,7 @@ export const AddSeasonModal: React.FC<AddSeasonModalProps> = ({
   currentClub,
   allClubs,
   managerId,
+  players = [],
 }) => {
   // 1. Club selection (Choose existing, preset or custom)
   const [selectedClubId, setSelectedClubId] = useState<string>(currentClub?.id || 'club-rm');
@@ -71,11 +74,14 @@ export const AddSeasonModal: React.FC<AddSeasonModalProps> = ({
   const [played, setPlayed] = useState(38);
   const [won, setWon] = useState(32);
   const [drawn, setDrawn] = useState(4);
-  const [lost, setLost] = useState(2);
   const [goalsFor, setGoalsFor] = useState(102);
   const [goalsAgainst, setGoalsAgainst] = useState(22);
-  const [points, setPoints] = useState(100);
   const [leaguePosition, setLeaguePosition] = useState(1);
+
+  // Tự tính: Thua = Số trận - Thắng - Hòa ; Điểm = Thắng x 3 + Hòa x 1
+  const lost = Math.max(0, played - won - drawn);
+  const points = won * 3 + drawn;
+  const resultsInvalid = won + drawn > played;
 
   // 4. 5 Cup Competitions (Names auto-mapped based on selected League)
   const [nationalCupName, setNationalCupName] = useState('Copa del Rey');
@@ -101,10 +107,18 @@ export const AddSeasonModal: React.FC<AddSeasonModalProps> = ({
   const [cwcScore, setCwcScore] = useState('3 - 0');
 
   // 5. Top performers
-  const [topScorerName, setTopScorerName] = useState('Kylian Mbappé');
-  const [topScorerGoals, setTopScorerGoals] = useState(45);
-  const [topAssistName, setTopAssistName] = useState('Jude Bellingham');
-  const [topAssistCount, setTopAssistCount] = useState(22);
+  const [scorerName, setScorerName] = useState('');
+  const [scorerGoals, setScorerGoals] = useState(0);
+  const [scorerAssists, setScorerAssists] = useState(0);
+  const [scorerMatches, setScorerMatches] = useState<number | null>(null);
+  const [scorerPos, setScorerPos] = useState<string>('CF');
+  const [assistName, setAssistName] = useState('');
+  const [assistCount, setAssistCount] = useState(0);
+  const [assistGoals, setAssistGoals] = useState(0);
+  const [assistMatches, setAssistMatches] = useState<number | null>(null);
+  const [assistPos, setAssistPos] = useState<string>('AMF');
+  const findPlayer = (name: string) =>
+    players.find((p) => p.name.trim().toLowerCase() === name.trim().toLowerCase());
 
   // 6. Budgets Start & End in Full Numbers + Selected Currency
   const [selectedCurrency, setSelectedCurrency] = useState<CurrencyType>('USD');
@@ -199,6 +213,11 @@ export const AddSeasonModal: React.FC<AddSeasonModalProps> = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
+    if (won + drawn > played) {
+      alert('Số trận thắng + hòa không được lớn hơn tổng số trận.');
+      return;
+    }
+
     // Determine the active club for this season
     let activeClubForSeason: Club;
 
@@ -256,6 +275,11 @@ export const AddSeasonModal: React.FC<AddSeasonModalProps> = ({
     const showEuroSuperFinal = euroSuperCupRound === 'Vô địch' || euroSuperCupRound === 'Á quân';
     const showCwcFinal = cwcRound === 'Vô địch' || cwcRound === 'Á quân';
 
+    const sName = scorerName.trim();
+    const aName = assistName.trim();
+    const scorerExisting = findPlayer(sName);
+    const assistExisting = findPlayer(aName);
+
     const newSeason: SeasonStats = {
       id: `season-${Date.now()}`,
       managerId,
@@ -307,26 +331,28 @@ export const AddSeasonModal: React.FC<AddSeasonModalProps> = ({
       },
 
       topScorer: {
-        playerId: 'p-custom-scorer',
-        playerName: topScorerName,
-        goals: topScorerGoals,
-        assists: 8,
-        matches: played,
-        position: 'CF',
+        playerId: scorerExisting?.id ?? autoPlayerId(managerId, sName),
+        playerName: sName,
+        goals: scorerGoals,
+        assists: scorerAssists,
+        matches: scorerMatches ?? played,
+        avatarUrl: scorerExisting?.avatarUrl,
+        position: scorerExisting?.position ?? scorerPos,
       },
       topAssist: {
-        playerId: 'p-custom-assist',
-        playerName: topAssistName,
-        assists: topAssistCount,
-        goals: 14,
-        matches: played,
-        position: 'AMF',
+        playerId: assistExisting?.id ?? autoPlayerId(managerId, aName),
+        playerName: aName,
+        assists: assistCount,
+        goals: assistGoals,
+        matches: assistMatches ?? played,
+        avatarUrl: assistExisting?.avatarUrl,
+        position: assistExisting?.position ?? assistPos,
       },
       seasonMVP: {
-        playerId: 'p-custom-mvp',
-        playerName: topScorerName,
+        playerId: scorerExisting?.id ?? autoPlayerId(managerId, sName),
+        playerName: sName,
         rating: 9.0,
-        position: 'CF',
+        position: scorerExisting?.position ?? scorerPos,
       },
       startTransferBudget: startTransfer,
       endTransferBudget: endTransfer,
@@ -339,6 +365,35 @@ export const AddSeasonModal: React.FC<AddSeasonModalProps> = ({
     onSaveSeason(newSeason, activeClubForSeason);
     onClose();
   };
+
+  const renderNum = (label: string, value: number, onChange: (v: number) => void, color: string) => (
+    <div>
+      <span className={`text-[10px] block font-bold mb-0.5 ${color}`}>{label}</span>
+      <input
+        type="number"
+        min={0}
+        inputMode="numeric"
+        value={value}
+        onChange={(e) => onChange(Math.max(0, parseInt(e.target.value) || 0))}
+        className="w-full bg-slate-900 text-white p-2 rounded-xl border border-slate-700 font-mono text-center font-bold"
+      />
+    </div>
+  );
+  const posSelect = (value: string, onChange: (v: string) => void, locked: boolean) => (
+    <select
+      value={value}
+      disabled={locked}
+      onChange={(e) => onChange(e.target.value)}
+      title={locked ? 'Cầu thủ đã có trong danh sách (sửa vị trí bằng nút ✏️ sau khi lưu)' : ''}
+      className="bg-slate-900 text-white p-2 rounded-xl border border-slate-700 font-bold disabled:opacity-60"
+    >
+      {POSITIONS.map((p) => (
+        <option key={p} value={p}>
+          {p}
+        </option>
+      ))}
+    </select>
+  );
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200 overflow-y-auto">
@@ -513,15 +568,18 @@ export const AddSeasonModal: React.FC<AddSeasonModalProps> = ({
                 />
               </div>
               <div>
-                <span className="text-[10px] text-rose-400 block font-bold">Thua</span>
-                <input
-                  type="number"
-                  value={lost}
-                  onChange={(e) => setLost(parseInt(e.target.value) || 0)}
-                  className="w-full bg-slate-900 text-white p-2 rounded-xl border border-slate-700 font-mono text-center font-bold"
-                />
+                <span className="text-[10px] text-rose-400 block font-bold">Thua (tự tính)</span>
+                <div className="w-full bg-slate-950 text-rose-300 p-2 rounded-xl border border-slate-800 font-mono text-center font-bold">
+                  {lost}
+                </div>
               </div>
             </div>
+
+            <p className={`text-[10px] mt-1.5 ${resultsInvalid ? 'text-rose-300 font-bold' : 'text-slate-500'}`}>
+              {resultsInvalid
+                ? 'Thắng + Hòa đang lớn hơn tổng số trận, hãy kiểm tra lại.'
+                : 'Thua = Số trận − Thắng − Hòa  •  Điểm = Thắng × 3 + Hòa × 1 (tự động)'}
+            </p>
 
             <div className="grid grid-cols-4 gap-2 text-center mt-2">
               <div>
@@ -543,13 +601,10 @@ export const AddSeasonModal: React.FC<AddSeasonModalProps> = ({
                 />
               </div>
               <div>
-                <span className="text-[10px] text-amber-300 block font-bold">Điểm Số</span>
-                <input
-                  type="number"
-                  value={points}
-                  onChange={(e) => setPoints(parseInt(e.target.value) || 0)}
-                  className="w-full bg-slate-900 text-white p-2 rounded-xl border border-slate-700 font-mono text-center font-bold"
-                />
+                <span className="text-[10px] text-amber-300 block font-bold">Điểm (tự tính)</span>
+                <div className="w-full bg-slate-950 text-amber-300 p-2 rounded-xl border border-slate-800 font-mono text-center font-bold">
+                  {points}
+                </div>
               </div>
               <div>
                 <span className="text-[10px] text-emerald-300 block font-bold">Thứ Hạng</span>
@@ -847,51 +902,70 @@ export const AddSeasonModal: React.FC<AddSeasonModalProps> = ({
             </div>
           </div>
 
-          {/* SECTION 5: VUA PHÁ LƯỚI & KIẾN TẠO CỐT LÕI */}
-          <div className="grid grid-cols-2 gap-3 bg-slate-900/60 p-3 rounded-2xl border border-slate-800">
-            <div>
-              <label className="text-[10px] font-bold text-amber-400 uppercase block mb-1 flex items-center gap-1">
-                <Flame className="w-3.5 h-3.5 text-amber-400" /> Vua Phá Lưới (Bàn Thắng)
+          {/* SECTION 5: TOP 1 GHI BÀN & TOP 1 KIẾN TẠO */}
+          <datalist id="ml-players">
+            {players.map((p) => (
+              <option key={p.id} value={p.name} />
+            ))}
+          </datalist>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-slate-900/60 p-3 rounded-2xl border border-slate-800">
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-amber-400 uppercase block flex items-center gap-1">
+                <Flame className="w-3.5 h-3.5 text-amber-400" /> Top 1 Ghi Bàn
               </label>
               <div className="flex gap-2">
                 <input
                   type="text"
-                  value={topScorerName}
-                  onChange={(e) => setTopScorerName(e.target.value)}
-                  className="flex-1 bg-slate-900 text-white p-2 rounded-xl border border-slate-700 font-bold"
+                  list="ml-players"
+                  value={scorerName}
+                  onChange={(e) => {
+                    setScorerName(e.target.value);
+                    const m = findPlayer(e.target.value);
+                    if (m) setScorerPos(m.position);
+                  }}
+                  className="flex-1 min-w-0 bg-slate-900 text-white p-2 rounded-xl border border-slate-700 font-bold"
                   placeholder="Tên cầu thủ"
                   required
                 />
-                <input
-                  type="number"
-                  value={topScorerGoals}
-                  onChange={(e) => setTopScorerGoals(parseInt(e.target.value) || 0)}
-                  className="w-16 bg-slate-900 text-amber-300 p-2 rounded-xl border border-slate-700 font-mono text-center font-bold"
-                />
+                {posSelect(findPlayer(scorerName)?.position ?? scorerPos, setScorerPos, !!findPlayer(scorerName))}
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                {renderNum('Bàn thắng', scorerGoals, setScorerGoals, 'text-amber-300')}
+                {renderNum('Kiến tạo', scorerAssists, setScorerAssists, 'text-slate-400')}
+                {renderNum('Số trận', scorerMatches ?? played, (v) => setScorerMatches(v), 'text-slate-400')}
               </div>
             </div>
 
-            <div>
-              <label className="text-[10px] font-bold text-cyan-400 uppercase block mb-1 flex items-center gap-1">
-                <Zap className="w-3.5 h-3.5 text-cyan-400" /> Vua Kiến Tạo (Số KT)
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-cyan-400 uppercase block flex items-center gap-1">
+                <Zap className="w-3.5 h-3.5 text-cyan-400" /> Top 1 Kiến Tạo
               </label>
               <div className="flex gap-2">
                 <input
                   type="text"
-                  value={topAssistName}
-                  onChange={(e) => setTopAssistName(e.target.value)}
-                  className="flex-1 bg-slate-900 text-white p-2 rounded-xl border border-slate-700 font-bold"
+                  list="ml-players"
+                  value={assistName}
+                  onChange={(e) => {
+                    setAssistName(e.target.value);
+                    const m = findPlayer(e.target.value);
+                    if (m) setAssistPos(m.position);
+                  }}
+                  className="flex-1 min-w-0 bg-slate-900 text-white p-2 rounded-xl border border-slate-700 font-bold"
                   placeholder="Tên cầu thủ"
                   required
                 />
-                <input
-                  type="number"
-                  value={topAssistCount}
-                  onChange={(e) => setTopAssistCount(parseInt(e.target.value) || 0)}
-                  className="w-16 bg-slate-900 text-cyan-300 p-2 rounded-xl border border-slate-700 font-mono text-center font-bold"
-                />
+                {posSelect(findPlayer(assistName)?.position ?? assistPos, setAssistPos, !!findPlayer(assistName))}
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                {renderNum('Kiến tạo', assistCount, setAssistCount, 'text-cyan-300')}
+                {renderNum('Bàn thắng', assistGoals, setAssistGoals, 'text-slate-400')}
+                {renderNum('Số trận', assistMatches ?? played, (v) => setAssistMatches(v), 'text-slate-400')}
               </div>
             </div>
+            <p className="sm:col-span-2 text-[10px] text-slate-500">
+              Gõ tên trùng cầu thủ đã có để cộng dồn số liệu cho cùng một người (kể cả khi sang CLB khác). Ảnh, quốc tịch,
+              tuổi sửa bằng nút ✏️ sau khi lưu.
+            </p>
           </div>
 
           {/* SECTION 6: TÀI CHÍNH BẰNG SỐ FULL KÈM NGOẠI TỆ ĐẰNG TRƯỚC */}

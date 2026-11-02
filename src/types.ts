@@ -189,6 +189,7 @@ export interface Player {
     clutch: number; // Thần thái trận lớn
   };
   isFavorite?: boolean;
+  autoCreated?: boolean; // tạo tự động từ mùa giải (sẽ tự xoá nếu không còn mùa nào nhắc tới)
 }
 
 export interface MatchLog {

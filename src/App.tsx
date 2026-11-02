@@ -19,6 +19,9 @@ import { AddSeasonModal } from './components/AddSeasonModal';
 import { ManagerSwitcherModal } from './components/ManagerSwitcherModal';
 import { CloudBackupModal } from './components/CloudBackupModal';
 import { ImageUploadModal } from './components/ImageUploadModal';
+import { PerformerEditModal } from './components/PerformerEditModal';
+import { ManagerEditModal } from './components/ManagerEditModal';
+import { normalizeState, applyPerformerEdit, countPlayerRefs, PerformerEdit } from './utils/performers';
 import { initSync, syncNow as fbSyncNow, markChanged as fbMarkChanged, useSyncStatus } from './utils/firebaseSync';
 import {
   Sparkles,
@@ -44,12 +47,12 @@ export default function App() {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
-        return JSON.parse(saved);
+        return normalizeState(JSON.parse(saved));
       }
     } catch (e) {
       console.error('Failed to load Master League state from storage', e);
     }
-    return INITIAL_PES_STATE;
+    return normalizeState(INITIAL_PES_STATE);
   });
 
   // Active navigation tab
@@ -98,6 +101,13 @@ export default function App() {
 
   // Manager Players
   const managerPlayers = state.players.filter((p) => p.managerId === activeManager?.id);
+
+  // Giữ dữ liệu cầu thủ luôn nhất quán: liên kết Top ghi bàn/kiến tạo với cầu thủ,
+  // cộng dồn bàn thắng + kiến tạo theo mùa, đồng bộ tên/ảnh/vị trí ở mọi nơi
+  useEffect(() => {
+    const n = normalizeState(state);
+    if (n !== state) setState(n);
+  }, [state]);
 
   // Lưu localStorage, đồng bộ Firebase, và (nếu có máy chủ Node) sao lưu lên server
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -155,8 +165,9 @@ export default function App() {
       getState: () => stateRef.current,
       applyState: (remote: any) => {
         if (!remote || !remote.managers || !remote.seasons) return;
-        lastJsonRef.current = JSON.stringify(remote);
-        setState(remote);
+        const normalized = normalizeState(remote);
+        lastJsonRef.current = JSON.stringify(normalized);
+        setState(normalized);
       },
     });
     fbSyncNow();
@@ -292,104 +303,6 @@ export default function App() {
         });
       }
 
-      // Update or insert players for topScorer and topAssist
-      let updatedPlayers = [...prev.players];
-
-      // Update Top Scorer
-      const scorerIndex = updatedPlayers.findIndex(
-        (p) => p.name.toLowerCase() === newSeason.topScorer.playerName.toLowerCase()
-      );
-      if (scorerIndex >= 0) {
-        updatedPlayers[scorerIndex] = {
-          ...updatedPlayers[scorerIndex],
-          goals: updatedPlayers[scorerIndex].goals + newSeason.topScorer.goals,
-          appearances: updatedPlayers[scorerIndex].appearances + newSeason.played,
-          seasonsCount: updatedPlayers[scorerIndex].seasonsCount + 1,
-        };
-      } else {
-        updatedPlayers.push({
-          id: `p-${Date.now()}-1`,
-          managerId: activeManager.id,
-          clubId: activeClub.id,
-          name: newSeason.topScorer.playerName,
-          age: 26,
-          nationality: 'France',
-          position: 'CF',
-          overallRating: 91,
-          potential: 94,
-          form: 'top',
-          marketValue: 150.0,
-          weeklySalary: 280,
-          avatarUrl:
-            newSeason.topScorer.avatarUrl ||
-            'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=200&auto=format&fit=crop&q=80',
-          seasonsCount: 1,
-          appearances: newSeason.played,
-          goals: newSeason.topScorer.goals,
-          assists: newSeason.topScorer.assists || 6,
-          motmCount: 8,
-          avgRating: 8.5,
-          trophiesWon: newSeason.leaguePosition === 1 ? 1 : 0,
-          clutchGoalsInFinals: 2,
-          attributes: {
-            pace: 93,
-            shooting: 90,
-            passing: 80,
-            dribbling: 88,
-            defending: 40,
-            physical: 82,
-            clutch: 92,
-          },
-        });
-      }
-
-      // Update Top Assist
-      const assistIndex = updatedPlayers.findIndex(
-        (p) => p.name.toLowerCase() === newSeason.topAssist.playerName.toLowerCase()
-      );
-      if (assistIndex >= 0) {
-        updatedPlayers[assistIndex] = {
-          ...updatedPlayers[assistIndex],
-          assists: updatedPlayers[assistIndex].assists + newSeason.topAssist.assists,
-          appearances: updatedPlayers[assistIndex].appearances + newSeason.played,
-        };
-      } else if (newSeason.topAssist.playerName !== newSeason.topScorer.playerName) {
-        updatedPlayers.push({
-          id: `p-${Date.now()}-2`,
-          managerId: activeManager.id,
-          clubId: activeClub.id,
-          name: newSeason.topAssist.playerName,
-          age: 24,
-          nationality: 'England',
-          position: 'AMF',
-          overallRating: 89,
-          potential: 92,
-          form: 'good',
-          marketValue: 110.0,
-          weeklySalary: 220,
-          avatarUrl:
-            newSeason.topAssist.avatarUrl ||
-            'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&auto=format&fit=crop&q=80',
-          seasonsCount: 1,
-          appearances: newSeason.played,
-          goals: newSeason.topAssist.goals || 10,
-          assists: newSeason.topAssist.assists,
-          motmCount: 5,
-          avgRating: 8.2,
-          trophiesWon: newSeason.leaguePosition === 1 ? 1 : 0,
-          clutchGoalsInFinals: 1,
-          attributes: {
-            pace: 82,
-            shooting: 84,
-            passing: 92,
-            dribbling: 88,
-            defending: 55,
-            physical: 80,
-            clutch: 88,
-          },
-        });
-      }
-
       // Calculate total new trophies won
       const newTrophiesCount =
         (newSeason.leaguePosition === 1 ? 1 : 0) +
@@ -440,15 +353,14 @@ export default function App() {
         });
       }
 
-      return {
+      return normalizeState({
         ...prev,
         clubs: updatedClubs,
         managers: updatedManagers,
         seasons: [newSeason, ...updatedSeasons],
         trophies: newTrophies,
-        players: updatedPlayers,
         tenures: updatedTenures,
-      };
+      });
     });
   };
 
@@ -504,12 +416,12 @@ export default function App() {
         return t;
       });
 
-      return {
+      return normalizeState({
         ...prev,
         seasons: updatedSeasons,
         trophies: updatedTrophies,
         tenures: updatedTenures,
-      };
+      });
     });
   };
 
@@ -633,31 +545,13 @@ export default function App() {
       }
 
       if (type === 'player') {
-        // Update players array
-        const updatedPlayers = prev.players.map((p) =>
-          p.id === targetId || p.name === imageUploadConfig.title.split(': ')[1]
-            ? { ...p, avatarUrl: imageDataUrl }
-            : p
+        const nameFromTitle = imageUploadConfig.title.split(': ')[1];
+        const hasId = prev.players.some((p) => p.id === targetId);
+        const players = prev.players.map((p) =>
+          p.id === targetId || (!hasId && p.name === nameFromTitle) ? { ...p, avatarUrl: imageDataUrl } : p
         );
-
-        // Also update seasons topScorer / topAssist avatar
-        const updatedSeasons = prev.seasons.map((s) => ({
-          ...s,
-          topScorer:
-            s.topScorer.playerId === targetId
-              ? { ...s.topScorer, avatarUrl: imageDataUrl }
-              : s.topScorer,
-          topAssist:
-            s.topAssist.playerId === targetId
-              ? { ...s.topAssist, avatarUrl: imageDataUrl }
-              : s.topAssist,
-        }));
-
-        return {
-          ...prev,
-          players: updatedPlayers,
-          seasons: updatedSeasons,
-        };
+        // normalizeState đồng bộ ảnh mới sang Tổng quan, Lịch sử mùa giải và Ngôi sao
+        return normalizeState({ ...prev, players });
       }
 
       return prev;
@@ -667,6 +561,42 @@ export default function App() {
   };
 
   // Server Backup API integration
+  const [performerEdit, setPerformerEdit] = useState<{ seasonId: string; kind: 'scorer' | 'assist' } | null>(null);
+  const [isManagerEditOpen, setIsManagerEditOpen] = useState(false);
+
+  const handleSavePerformer = (data: PerformerEdit) => {
+    if (!performerEdit) return;
+    const { seasonId, kind } = performerEdit;
+    const season = state.seasons.find((x) => x.id === seasonId);
+    if (!season) return;
+    const cur = kind === 'scorer' ? season.topScorer : season.topAssist;
+    const name = data.name.trim();
+    const sameNameExists = state.players.some(
+      (p) => p.managerId === season.managerId && p.name.trim().toLowerCase() === name.toLowerCase()
+    );
+    let renameAll = false;
+    if (!sameNameExists) {
+      const refs = countPlayerRefs(state.seasons, cur.playerId);
+      if (refs > 1) {
+        renameAll = window.confirm(
+          `Cầu thủ "${cur.playerName}" đang xuất hiện ở ${refs} mùa giải.\n\nOK = đổi tên ở TẤT CẢ các mùa (sửa lỗi chính tả).\nHủy = chỉ mùa này là một cầu thủ khác tên "${name}".`
+        );
+      } else {
+        renameAll = true;
+      }
+    }
+    setState((prev) => applyPerformerEdit(prev, seasonId, kind, data, renameAll));
+    setPerformerEdit(null);
+  };
+
+  const handleUpdateManager = (data: { name: string; nationality: string; age: number }) => {
+    setState((prev) => ({
+      ...prev,
+      managers: prev.managers.map((m) => (m.id === activeManager?.id ? { ...m, ...data } : m)),
+    }));
+    setIsManagerEditOpen(false);
+  };
+
   const handleTriggerServerSave = async () => {
     const res = await fetch('/api/backup/save', {
       method: 'POST',
@@ -719,6 +649,7 @@ export default function App() {
               seasons={state.seasons}
               onOpenManagerSwitcher={() => setIsManagerSwitcherOpen(true)}
               onUploadManagerAvatar={handleOpenManagerAvatarUpload}
+              onEditManager={() => setIsManagerEditOpen(true)}
               onUploadClubLogo={handleOpenClubLogoUpload}
             />
 
@@ -730,6 +661,7 @@ export default function App() {
                 onViewPlayerDetail={() => setActiveTab('stars')}
                 onUploadPlayerAvatar={handleOpenPlayerAvatarUpload}
                 onUploadClubLogo={handleOpenClubLogoUpload}
+                onEditPerformer={(seasonId, kind) => setPerformerEdit({ seasonId, kind })}
               />
             ) : (
               <div className="p-6 sm:p-8 rounded-3xl ios-glass-card border border-dashed border-amber-500/40 text-center space-y-3">
@@ -772,7 +704,7 @@ export default function App() {
                   👑
                 </div>
                 <div>
-                  <div className="text-xs font-bold text-white">Vua Phá Lưới & KT</div>
+                  <div className="text-xs font-bold text-white">Top 1 Ghi Bàn & KT</div>
                   <div className="text-[10px] text-slate-400">Xem bàn thắng & kiến tạo</div>
                 </div>
               </button>
@@ -810,6 +742,7 @@ export default function App() {
               clubs={state.clubs}
               onDeleteSeason={handleDeleteSeason}
               onOpenAddSeason={() => setIsAddSeasonOpen(true)}
+              onEditPerformer={(seasonId, kind) => setPerformerEdit({ seasonId, kind })}
             />
           </div>
         )}
@@ -833,6 +766,7 @@ export default function App() {
               clubs={state.clubs}
               onDeleteSeason={handleDeleteSeason}
               onOpenAddSeason={() => setIsAddSeasonOpen(true)}
+              onEditPerformer={(seasonId, kind) => setPerformerEdit({ seasonId, kind })}
             />
           </div>
         )}
@@ -846,12 +780,14 @@ export default function App() {
           />
         )}
 
-        {/* TAB 4: STARS (Vua phá lưới, vua kiến tạo) */}
+        {/* TAB 4: STARS (Top 1 ghi bàn, Top 1 kiến tạo) */}
         {activeTab === 'stars' && (
           <TopPerformerComparison
             players={managerPlayers}
             seasons={managerSeasons}
             onUploadPlayerAvatar={handleOpenPlayerAvatarUpload}
+            clubs={state.clubs}
+            onEditPerformer={(seasonId, kind) => setPerformerEdit({ seasonId, kind })}
           />
         )}
 
@@ -889,6 +825,23 @@ export default function App() {
         currentClub={currentClub}
         allClubs={state.clubs}
         managerId={activeManager.id}
+        players={managerPlayers}
+      />
+
+      <PerformerEditModal
+        isOpen={!!performerEdit}
+        kind={performerEdit?.kind ?? 'scorer'}
+        season={performerEdit ? state.seasons.find((x) => x.id === performerEdit.seasonId) || null : null}
+        players={managerPlayers}
+        onClose={() => setPerformerEdit(null)}
+        onSave={handleSavePerformer}
+      />
+
+      <ManagerEditModal
+        isOpen={isManagerEditOpen}
+        manager={activeManager}
+        onClose={() => setIsManagerEditOpen(false)}
+        onSave={handleUpdateManager}
       />
 
       <ManagerSwitcherModal

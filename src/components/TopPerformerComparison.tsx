@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Player, SeasonStats } from '../types';
+import { Player, SeasonStats, Club } from '../types';
+import { playerClubBreakdown } from '../utils/performers';
 import {
   Flame,
   Zap,
@@ -9,19 +10,29 @@ import {
   Camera,
   Sparkles,
   Trophy,
+  Pencil,
 } from 'lucide-react';
 
 interface TopPerformerComparisonProps {
   players: Player[];
   seasons: SeasonStats[];
   onUploadPlayerAvatar?: (playerName: string, playerId: string) => void;
+  clubs?: Club[];
+  onEditPerformer?: (seasonId: string, kind: 'scorer' | 'assist') => void;
 }
 
 export const TopPerformerComparison: React.FC<TopPerformerComparisonProps> = ({
   players,
   seasons,
   onUploadPlayerAvatar,
+  clubs = [],
+  onEditPerformer,
 }) => {
+  // Tổng bàn thắng / kiến tạo theo từng CLB (chỉ hiện khi cầu thủ từng ở nhiều CLB dưới quyền HLV)
+  const clubBreakdownText = (playerId: string) => {
+    const b = playerClubBreakdown(playerId, seasons, clubs);
+    return b.length > 1 ? b.map((x) => `${x.clubName}: ${x.goals} bàn / ${x.assists} KT`).join(' · ') : '';
+  };
   // Sort players for Top Scorers & Top Assists
   const sortedScorers = [...players].sort((a, b) => b.goals - a.goals);
   const sortedAssisters = [...players].sort((a, b) => b.assists - a.assists);
@@ -65,7 +76,7 @@ export const TopPerformerComparison: React.FC<TopPerformerComparisonProps> = ({
               </span>
             </div>
             <h2 className="text-xl sm:text-2xl font-black text-white mt-1">
-              Vua Phá Lưới & Vua Kiến Tạo
+              Top 1 Ghi Bàn & Top 1 Kiến Tạo
             </h2>
             <p className="text-xs text-slate-400 mt-0.5">
               Ghi nhiều nhất bao nhiêu bàn • Kiến tạo nhiều nhất bao nhiêu lần
@@ -92,7 +103,7 @@ export const TopPerformerComparison: React.FC<TopPerformerComparisonProps> = ({
                   : 'text-slate-400 hover:text-white'
               }`}
             >
-              <Flame className="w-3.5 h-3.5" /> Vua Phá Lưới
+              <Flame className="w-3.5 h-3.5" /> Top 1 Ghi Bàn
             </button>
             <button
               onClick={() => setActiveFilter('assists')}
@@ -102,7 +113,7 @@ export const TopPerformerComparison: React.FC<TopPerformerComparisonProps> = ({
                   : 'text-slate-400 hover:text-white'
               }`}
             >
-              <Zap className="w-3.5 h-3.5" /> Vua Kiến Tạo
+              <Zap className="w-3.5 h-3.5" /> Top 1 Kiến Tạo
             </button>
             <button
               onClick={() => setActiveFilter('seasons')}
@@ -252,7 +263,7 @@ export const TopPerformerComparison: React.FC<TopPerformerComparisonProps> = ({
       {/* 2 Main Ranking Lists: Top Goals & Top Assists */}
       {(activeFilter === 'all' || activeFilter === 'scorers' || activeFilter === 'assists') && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {/* List 1: Bảng Xếp Hạng Vua Phá Lưới (Bàn Thắng) */}
+          {/* List 1: Bảng Xếp Hạng Top 1 Ghi Bàn */}
           {(activeFilter === 'all' || activeFilter === 'scorers') && (
             <div className="rounded-3xl ios-glass-card p-4 sm:p-5 border border-slate-700/60 space-y-3">
               <div className="flex items-center justify-between">
@@ -313,6 +324,9 @@ export const TopPerformerComparison: React.FC<TopPerformerComparisonProps> = ({
                           <span>•</span>
                           <span>{player.nationality}</span>
                         </div>
+                        {clubBreakdownText(player.id) && (
+                          <div className="text-[10px] text-cyan-300/90 mt-0.5">{clubBreakdownText(player.id)}</div>
+                        )}
                       </div>
                     </div>
 
@@ -330,7 +344,7 @@ export const TopPerformerComparison: React.FC<TopPerformerComparisonProps> = ({
             </div>
           )}
 
-          {/* List 2: Bảng Xếp Hạng Vua Kiến Tạo */}
+          {/* List 2: Bảng Xếp Hạng Top Kiến Tạo */}
           {(activeFilter === 'all' || activeFilter === 'assists') && (
             <div className="rounded-3xl ios-glass-card p-4 sm:p-5 border border-slate-700/60 space-y-3">
               <div className="flex items-center justify-between">
@@ -391,6 +405,9 @@ export const TopPerformerComparison: React.FC<TopPerformerComparisonProps> = ({
                           <span>•</span>
                           <span>{player.nationality}</span>
                         </div>
+                        {clubBreakdownText(player.id) && (
+                          <div className="text-[10px] text-cyan-300/90 mt-0.5">{clubBreakdownText(player.id)}</div>
+                        )}
                       </div>
                     </div>
 
@@ -415,7 +432,7 @@ export const TopPerformerComparison: React.FC<TopPerformerComparisonProps> = ({
         <div className="rounded-3xl ios-glass-card p-4 sm:p-5 border border-slate-700/60 space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="text-xs font-bold uppercase tracking-wider text-white flex items-center gap-1.5">
-              <Calendar className="w-4 h-4 text-amber-400" /> Vua Phá Lưới & Kiến Tạo Qua Từng Mùa Giải
+              <Calendar className="w-4 h-4 text-amber-400" /> Top 1 Ghi Bàn & Kiến Tạo Qua Từng Mùa Giải
             </h3>
             <span className="text-[10px] text-slate-400 font-mono">{seasons.length} Mùa</span>
           </div>
@@ -445,12 +462,19 @@ export const TopPerformerComparison: React.FC<TopPerformerComparisonProps> = ({
                       <Flame className="w-4 h-4" />
                     </div>
                     <div className="min-w-0">
-                      <div className="text-[10px] text-slate-400 uppercase font-bold">Vua Phá Lưới</div>
+                      <div className="text-[10px] text-slate-400 uppercase font-bold">Top 1 Ghi Bàn</div>
                       <div className="text-xs font-bold text-white truncate">{s.topScorer.playerName}</div>
                       <div className="text-xs font-black text-amber-300 font-mono mt-0.5">
-                        {s.topScorer.goals} Bàn
+                        {s.topScorer.goals} Bàn · {s.topScorer.assists} KT
                       </div>
                     </div>
+                    <button
+                      onClick={() => onEditPerformer?.(s.id, 'scorer')}
+                      className="ml-auto p-1.5 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 cursor-pointer shrink-0"
+                      title="Sửa Top 1 Ghi Bàn"
+                    >
+                      <Pencil className="w-3 h-3" />
+                    </button>
                   </div>
 
                   {/* Top Assist of season */}
@@ -459,12 +483,19 @@ export const TopPerformerComparison: React.FC<TopPerformerComparisonProps> = ({
                       <Zap className="w-4 h-4" />
                     </div>
                     <div className="min-w-0">
-                      <div className="text-[10px] text-slate-400 uppercase font-bold">Vua Kiến Tạo</div>
+                      <div className="text-[10px] text-slate-400 uppercase font-bold">Top 1 Kiến Tạo</div>
                       <div className="text-xs font-bold text-white truncate">{s.topAssist.playerName}</div>
                       <div className="text-xs font-black text-cyan-300 font-mono mt-0.5">
-                        {s.topAssist.assists} Kiến Tạo
+                        {s.topAssist.assists} KT · {s.topAssist.goals} Bàn
                       </div>
                     </div>
+                    <button
+                      onClick={() => onEditPerformer?.(s.id, 'assist')}
+                      className="ml-auto p-1.5 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 cursor-pointer shrink-0"
+                      title="Sửa Top 1 Kiến Tạo"
+                    >
+                      <Pencil className="w-3 h-3" />
+                    </button>
                   </div>
                 </div>
               </div>
